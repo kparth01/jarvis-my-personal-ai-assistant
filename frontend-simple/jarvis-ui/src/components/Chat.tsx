@@ -4,11 +4,11 @@ import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import axios from 'axios';
 import { useEffect, useRef, useState } from "react";
-import { Message, ChatResponse } from "../types/models";
+import { Message, ChatResponse, ChatMsgHistory } from "../types/models";
 import Avatar from '@mui/material/Avatar';
 import Typography from "@mui/material/Typography";
 
-const Chat = ({ setTopics }: any) => {
+const Chat = ({ setTopics, selectedItem }: any) => {
     const [formData, setFormData] = useState({
         message: '',
     });
@@ -17,8 +17,39 @@ const Chat = ({ setTopics }: any) => {
 
 
     useEffect(() => {
-        axios.delete('http://localhost:8000/context')
-    }, [])
+        setHistory([]);
+        axios.delete('http://localhost:8000/context');
+
+        if (selectedItem && selectedItem.session_id) {
+            const userMsg: Message = {
+                role: 'user',
+                content: '',
+                timestamp: Date.now(),
+                sessionId: selectedItem.session_id
+            }
+
+            axios.post(`http://localhost:8000/chat-history-messages`, userMsg)
+                .then((res) => {
+                    console.log("res.data: ", res.data)
+                    const data: ChatMsgHistory = res.data;
+
+                    console.log("data", data);
+                    
+                    data?.messages.map((element: any, idx: number) => {
+                        console.log(idx)
+                        const assistantMsg: Message = {
+                            role: element.role,
+                            content: element.content,
+                            timestamp: Date.now(),
+                        };
+                        setHistory(prev => [...prev, assistantMsg]);
+                    })
+                })
+            .finally(() => {
+                console.log("Request completed")
+            });
+        }
+    }, [selectedItem])
     
     const onChange = (e: any) => {
         setFormData({

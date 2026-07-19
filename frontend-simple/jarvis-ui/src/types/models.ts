@@ -9,9 +9,15 @@ export interface Message {
 
 export interface ChatResponse {
   reply: string,
-  topic: string
+  topic: []
 }
 
 export interface ChatHistory {
   topics: []
+}
+
+export interface ChatMsgHistory {
+  topic: string,
+  messages: []
+  session_id: string
 }

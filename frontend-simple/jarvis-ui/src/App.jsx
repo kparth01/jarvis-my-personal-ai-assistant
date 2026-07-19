@@ -37,10 +37,14 @@ function Copyright() {
 function App() {
   const [count, setCount] = useState(0);
   const [topics, setTopics] = useState([]);
-  const [selectedItem, setSelectedItem] = useState("");
+  const [selectedItem, setSelectedItem] = useState([]);
 
   useEffect(() => {
-      let resp = axios.get('http://localhost:8000/chat-history')
+      loadData()
+  }, [])
+
+  const loadData = () => {
+    let resp = axios.get('http://localhost:8000/chat-history')
       .then((resp) => {
         const data = resp.data;
         if (data) {
@@ -48,10 +52,13 @@ function App() {
           setSelectedItem(data.topics[0])
         }
       })
-      .finally(() => {
-        console.log("Failed to load the topics from chat-history")
+      .catch((error) => {
+        console.log("Failed to load the topics from chat-history", error);
       })
-  }, [])
+      .finally(() => {
+        console.log("Request completed...");
+      })
+  }
 
   const handleActiveFlag = (selectedItem) => {
     setSelectedItem(selectedItem);
@@ -64,13 +71,14 @@ function App() {
         <br/>
         <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
 
-          <Sidebar topics={topics} 
-            setTopics={setTopics}
+          <Sidebar selectedItem={selectedItem} 
+            topics={topics}
             handleActiveFlag={handleActiveFlag} />
           <Box sx={{ width: '80%', overflow: 'hidden' }}>    
-            <Chat topics={topics} 
+            <Chat
               setTopics={setTopics}
-              handleActiveFlag={handleActiveFlag} />
+              selectedItem={selectedItem}
+            />
           </Box>
         </Box>
         <Box sx={{ my: 4 }}><Copyright /></Box>

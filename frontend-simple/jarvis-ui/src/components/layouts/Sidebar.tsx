@@ -22,13 +22,13 @@ const Sidebar = ({ selectedItem,
                     <Typography sx={{ color: 'text.primary' }}>NEW CHATS</Typography>
                 </Breadcrumbs>
                 <List>
-                    {topics?.map((text: string, index: number) => (
+                    {topics?.map((element: any, index: number) => (
                         <ListItem key={index} >
                             <ListItemButton
-                                selected={selectedItem === text}
-                                onClick={() => handleActiveFlag(text)}>
+                                selected={selectedItem.session_id === element.session_id}
+                                onClick={() => handleActiveFlag(element)}>
                                 
-                                <ListItemText primary={text} />
+                                <ListItemText primary={element.topic} />
                             </ListItemButton>
                         </ListItem>
                     ))}

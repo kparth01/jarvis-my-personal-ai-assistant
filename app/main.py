@@ -80,14 +80,22 @@ async def reset_context():
 @app.get("/chat-history")
 async def chat_history():
     """Return the chat history from DB to show on UI"""
-    chats = get_chat_history()
-    topics: list[str] = []
-    
-    for chat in chats:
-        topics.append(chat["topic"])
+    chats = get_topics()
+    return JSONResponse(content={"topics": chats})
 
-    return JSONResponse(content={"topics": topics})
 
+@app.post("/chat-history-messages")
+async def chat_history(message: UserMessage):
+    """Return historic messages for selected chats based on session id"""
+    chat_messages_hist = get_chat_history(message.session_id)
+    messages_ob = json.loads(chat_messages_hist["messages"])
+    return JSONResponse(
+        content={
+            "topic": chat_messages_hist["topic"],
+            "messages": messages_ob,
+            "session_id": chat_messages_hist["session_id"]
+        }
+    )
 
 def update_db(message: UserMessage, reply_text: str, topic: str):
     db = SessionLocal()
@@ -117,22 +125,41 @@ def update_db(message: UserMessage, reply_text: str, topic: str):
     finally:
         db.commit()
         db.close()
+        
     
-def get_chat_history():
+def get_topics():
     db = SessionLocal()
     try:
         chats = db.query(Chat).all()
-        chatDict = []
+        chat_list = []
         for c in chats:
-            chatDict.append({
+            chat_list.append({
                 "topic": c.topic,
                 "session_id": c.session_id
             })
         
-        return chatDict
+        return chat_list
         # return [{"topic": chat.topic, "session_id": chat.session_id} for chat in chats]
     except Exception as e:
         logger.error(f"Error occured while fetching chat history {e}")
+    finally:
+        db.commit()
+        db.close()
+
+
+def get_chat_history(session_id: str):
+    db = SessionLocal()
+    try:
+        chat_messages = db.query(Chat).filter(Chat.session_id == session_id)
+        if chat_messages is None:
+            return None
+        return {
+                "topic": chat_messages[0].topic,
+                "messages": chat_messages[0].messages,
+                "session_id": chat_messages[0].session_id
+            }
+    except Exception as e:
+        pass
     finally:
         db.commit()
         db.close()
