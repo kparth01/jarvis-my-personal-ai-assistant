@@ -3,6 +3,16 @@ from tools.web_search import WebSearch
 from tools.file_ops import FileOps
 from tools.calculator import Calculator
 from ollama import chat
+from llm.default_handler import DefaultHandler
+from llm.model_handler_base import ModelResponse
+from llm.qwen_handler import QwenHandler
+
+
+QWEN_SMART_MODEL = "qwen3.5:9b"
+QWEN_SMALL_MODEL = "qwen2.5-coder:7b"
+QWEN_GENERAL = "qwen2.5:7b"
+RESPONSE_MODEL = "gemma4"
+
 
 MY_INFO = """You are Jarvis, a personal AI assistant exclusively for Parth, 
 a Senior Software Engineer in Singapore. You respond only to Parth. 
@@ -159,6 +169,11 @@ tool_schemas = [
     }
 ]
 
+HANDLERS = {
+    "qwen2.5:7b": DefaultHandler(),
+    "qwen2.5-coder:14b": QwenHandler(),
+}
+
 class LLMCall():
 
     def __init__(self):
@@ -175,34 +190,56 @@ class LLMCall():
             "multiply": Calculator().multiply,
             "divide": Calculator().divide,
         }
+        self.active_model = QWEN_SMART_MODEL
 
+
+    def _generate_topic(self, transcript: str) -> str:
+        """Generate a topic for the users chat based on first message"""
+        prompt = [
+            {"role": "user",
+             "content": f"Give 3-5 word title summarizing the users message: {transcript}. Reply strictly with title, no punctuations."}
+        ]
+
+        result = chat(model=QWEN_GENERAL, messages=prompt)
+        return result.message.content.strip()
     
-    def generate_response(self, transcript: str) -> str:
+    def generate_response(self, transcript: str) -> tuple[str, str | None]:
+        topic: str = ""
         if (len(self.context) == 0):
             self.context.append({"role": "system", "content": SYSTEM_MESSAGE})
+            topic = self._generate_topic(transcript=transcript)
+            
 
         self.context.append({
                 "role": "user",
                 "content": transcript
             })
 
-        response = chat(model="qwen2.5:7b", 
+        response = chat(model=self.active_model, 
                         messages=self.context, 
-                        tools=tool_schemas)
+                        tools=tool_schemas,
+                        options={"temperature": 0.1},
+                        stream=False
+                    )
+        
+        if self.active_model == QWEN_GENERAL:
+            handler = HANDLERS.get(QWEN_GENERAL, DefaultHandler())
+            model_response: ModelResponse = handler.parse(response=response)
+        
+        elif self.active_model == QWEN_SMART_MODEL:
+            handler = HANDLERS.get(QWEN_SMART_MODEL, QwenHandler())
+            model_response: ModelResponse = handler.parse(response=response)
 
-        assistant_msg = {"role": "assistant", "content": response.message.content or ""}
-        if response.message.tool_calls:
-            assistant_msg["tool_calls"] = response.message.tool_calls
+        if model_response.tool_calls:
+            self.context.append(self.to_ollama_message(model_response))
 
-        self.context.append(assistant_msg)
-
-        if response.message.tool_calls:
-            tool_calls = response.message.tool_calls
+        if model_response.tool_calls:
+            tool_calls = model_response.tool_calls
             tool_result = []
             for tool_call in tool_calls:
-                print(tool_call)
-                tool_name = tool_call.function.name
-                tool_args = tool_call.function.arguments
+                print("Invoking tool call: ", tool_call.name)
+                tool_name = tool_call.name
+                tool_args = tool_call.arguments
 
                 tool_fn = self.available_tools.get(tool_name)
                 if not tool_fn:
@@ -225,12 +262,31 @@ class LLMCall():
                 "content": f"Summarize this final response from all the tool calls in 2-3 sentence in professional tone. Don't put codes there."
             })
 
-            final_response = chat(model="qwen2.5:7b", messages=self.context)
+            final_response = chat(model=RESPONSE_MODEL, messages=self.context)
 
             text = final_response.message.content
             self.context.append({ "role": "assistant", "content": text})
-            return text
+            return text, topic
                     
         else:
             text = response.message.content
-            return text
+            return text, topic
+    
+    def to_ollama_message(self, response: ModelResponse) -> dict:
+        msg = {
+            "role": "assistant",
+            "content": response.content or "",
+        }
+
+        if response.type == "tool_call" and response.tool_calls:
+            msg["tool_calls"] = [
+                {
+                    "function": {
+                        "name": tc.name,
+                        "arguments": tc.arguments
+                    }
+                }
+                for tc in response.tool_calls
+            ]
+
+        return msg

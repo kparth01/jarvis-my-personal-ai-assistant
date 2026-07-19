@@ -21,13 +21,16 @@ class UserMessage(BaseModel):
     role: Role
     content: str
     timestamp: float = Field(default_factory=lambda: time.time())
+    session_id: str | None = Field(None, alias="sessionId")
 
     class Config:
-        schema_extra = {
+        populate_by_name = True
+        json_schema_extra = {
             "example": {
                 "role": "user",
                 "content": "Turn on the lights",
                 "timestamp": 1670000000.0,
+                "session_id": "!QE3$EFR$FRRT56t#$%"
             }
         }
         

@@ -1,14 +1,20 @@
 import os
+import json
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from stt.speech_to_text import SpeechToText
 from llm.llm_call import LLMCall
 from tts.text_to_speech import TextToSpeech
 from api.models.user_message import UserMessage
 import shutil, uuid as uuid_lib, os
+from db.database import SessionLocal
+from db.models import Chat
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="VoiceAgent – Jarvis")
 
@@ -28,7 +34,7 @@ tts = TextToSpeech()
 
 
 @app.get("/health")
-def health():
+async def health():
     return {"status": "ok"}
 
 
@@ -53,16 +59,80 @@ async def chat(audio: UploadFile = File(...)) -> FileResponse:
 
 
 @app.post("/chat")
-def chat_pipeline(message: UserMessage):
+async def chat_pipeline(message: UserMessage):
     """Text-only endpoint: send a message, get a text reply."""
-    reply_text = llm.generate_response(message.content)
+    reply_text, topic = llm.generate_response(message.content)
+    update_db(message, reply_text, topic)
     return JSONResponse(
-        content={"role": "assistant", "reply": reply_text}
+        content={"role": "assistant", 
+                 "reply": reply_text,
+                 "topic": topic}
     )
 
 
 @app.delete("/context")
-def reset_context():
+async def reset_context():
     """Clear the LLM conversation context."""
     llm.context.clear()
     return {"status": "context cleared"}
+
+
+@app.get("/chat-history")
+async def chat_history():
+    """Return the chat history from DB to show on UI"""
+    chats = get_chat_history()
+    topics: list[str] = []
+    
+    for chat in chats:
+        topics.append(chat["topic"])
+
+    return JSONResponse(content={"topics": topics})
+
+
+def update_db(message: UserMessage, reply_text: str, topic: str):
+    db = SessionLocal()
+    try:
+        chat = db.query(Chat).filter(Chat.session_id == message.session_id).first()
+
+        new_message = {"role": "user", "content": message.content}
+        assistant_message = {"role": "assistant", "content": reply_text}
+
+        if chat is None:
+            chat = Chat(
+                session_id=message.session_id,
+                topic=topic,
+                messages=json.dumps([new_message, assistant_message])
+            )
+            db.add(chat)
+            logger.info(f"Creating new chat history with for session_id {message.session_id}")
+        else:
+            existing = json.loads(chat.messages)
+            existing.extend([new_message, assistant_message]) 
+            chat.messages = json.dumps(existing)
+            logger.info(f"Updating new chat history with for session_id {message.session_id}")
+
+    except Exception as e:
+        logger.error(f"Error occured while creating or updating chat history "
+        "for session_id {message.session_id}")
+    finally:
+        db.commit()
+        db.close()
+    
+def get_chat_history():
+    db = SessionLocal()
+    try:
+        chats = db.query(Chat).all()
+        chatDict = []
+        for c in chats:
+            chatDict.append({
+                "topic": c.topic,
+                "session_id": c.session_id
+            })
+        
+        return chatDict
+        # return [{"topic": chat.topic, "session_id": chat.session_id} for chat in chats]
+    except Exception as e:
+        logger.error(f"Error occured while fetching chat history {e}")
+    finally:
+        db.commit()
+        db.close()
