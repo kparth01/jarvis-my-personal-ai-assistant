@@ -159,7 +159,7 @@ def get_chat_history(session_id: str):
                 "session_id": chat_messages[0].session_id
             }
     except Exception as e:
-        pass
+        logger.error(f"Error occured while fetching chat history {e}")
     finally:
         db.commit()
         db.close()
