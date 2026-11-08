@@ -1,0 +1,20 @@
+# API server and request validation
+fastapi==0.162.0
+uvicorn==0.54.0
+python-multipart==0.0.22
+pydantic[email]==2.14.3
+
+# Speech recognition and synthesis
+faster-whisper==1.2.1
+TTS==0.22.0
+# Legacy librosa/TTS imports require pkg_resources (removed in setuptools 82).
+setuptools==80.9.0
+
+# LLM and web search clients
+ollama==0.6.3
+requests==2.34.2
+
+# PostgreSQL persistence and migrations
+SQLAlchemy==2.0.48
+alembic==1.20.1
+psycopg2-binary==2.9.13

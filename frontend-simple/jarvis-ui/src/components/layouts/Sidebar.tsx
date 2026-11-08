@@ -4,11 +4,32 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Breadcrumbs from '@mui/material/Breadcrumbs';
+import AddIcon from '@mui/icons-material/Add';
+import IconButton from '@mui/material/IconButton';
+import axios from 'axios';
+import { Message } from "../../types/models";
+
 
 const Sidebar = ({ selectedItem, 
     topics, 
     handleActiveFlag }: any) => {
+
+    const handleNewChat = () => {
+        const userMsg: Message = {
+            role: 'user',
+            content: '',
+            timestamp: Date.now(),
+            sessionId: ''
+        }
+        
+        axios.post(`http://localhost:8000/add-new`, userMsg)
+            .then((res) => {
+                console.log(res.data)
+            })
+            .finally(() => {
+                console.log("Request completed")
+            })
+    }
 
     return(
         <>
@@ -18,14 +39,18 @@ const Sidebar = ({ selectedItem,
                 minHeight: '100vh', 
                 margin: '20px' }}
             >
-                <Breadcrumbs aria-label="breadcrumb">
-                    <Typography sx={{ color: 'text.primary' }}>NEW CHATS</Typography>
-                </Breadcrumbs>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography sx={{ color: 'text.primary' }}>CHATS</Typography>
+                    <IconButton color="primary" onClick={handleNewChat} aria-label="new chat">
+                        <AddIcon />
+                    </IconButton>
+                </Box>
                 <List>
                     {topics?.map((element: any, index: number) => (
+                            
                         <ListItem key={index} >
                             <ListItemButton
-                                selected={selectedItem.session_id === element.session_id}
+                                selected={selectedItem === element.sessionId}
                                 onClick={() => handleActiveFlag(element)}>
                                 
                                 <ListItemText primary={element.topic} />

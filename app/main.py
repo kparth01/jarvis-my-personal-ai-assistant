@@ -12,6 +12,7 @@ import shutil, uuid as uuid_lib, os
 from db.database import SessionLocal
 from db.models import Chat
 import logging
+import uuid
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,12 +63,19 @@ async def chat(audio: UploadFile = File(...)) -> FileResponse:
 async def chat_pipeline(message: UserMessage):
     """Text-only endpoint: send a message, get a text reply."""
     reply_text, topic = llm.generate_response(message.content)
-    update_db(message, reply_text, topic)
+    update_chat(message, reply_text, topic)
     return JSONResponse(
         content={"role": "assistant", 
                  "reply": reply_text,
                  "topic": topic}
     )
+
+
+@app.post("/add-new")
+async def add_new(message: UserMessage):
+    """Add new blank chat when user initializes new chats"""
+    chat: Chat = create_chat(message, topic="New Chat")
+    return {"status": "New chat created"}
 
 
 @app.delete("/context")
@@ -81,7 +89,13 @@ async def reset_context():
 async def chat_history():
     """Return the chat history from DB to show on UI"""
     chats = get_topics()
-    return JSONResponse(content={"topics": chats})
+    data = []
+    for chat in chats:
+        data.append({
+            "topic": chat["topic"],
+            "sessionId": chat["session_id"]
+        })
+    return JSONResponse(content={"history": data})
 
 
 @app.post("/chat-history-messages")
@@ -93,11 +107,12 @@ async def chat_history(message: UserMessage):
         content={
             "topic": chat_messages_hist["topic"],
             "messages": messages_ob,
-            "session_id": chat_messages_hist["session_id"]
+            "sessionId": chat_messages_hist["session_id"]
         }
     )
 
-def update_db(message: UserMessage, reply_text: str, topic: str):
+
+def update_chat(message: UserMessage, reply_text: str, topic: str):
     db = SessionLocal()
     try:
         chat = db.query(Chat).filter(Chat.session_id == message.session_id).first()
@@ -125,6 +140,28 @@ def update_db(message: UserMessage, reply_text: str, topic: str):
     finally:
         db.commit()
         db.close()
+
+
+def create_chat(message: UserMessage, topic: str) -> Chat:
+    db = SessionLocal()
+
+    try:
+        session_id = str(uuid.uuid4())
+        chat = Chat(
+            session_id=session_id,
+            topic="",
+            messages=""
+        )
+        db.add(chat)
+        logger.info(f"Creating new chat history with for session_id: {session_id}")
+        return chat
+    except Exception as e:
+        logger.error(f"Error occured while creating or updating chat history "
+                "for session_id {session_id}")
+    finally:
+        db.commit()
+        db.close()
+    
         
     
 def get_topics():

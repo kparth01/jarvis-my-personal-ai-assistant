@@ -20,12 +20,12 @@ const Chat = ({ setTopics, selectedItem }: any) => {
         setHistory([]);
         axios.delete('http://localhost:8000/context');
 
-        if (selectedItem && selectedItem.session_id) {
+        if (selectedItem && selectedItem.sessionId) {
             const userMsg: Message = {
                 role: 'user',
                 content: '',
                 timestamp: Date.now(),
-                sessionId: selectedItem.session_id
+                sessionId: selectedItem.sessionId
             }
 
             axios.post(`http://localhost:8000/chat-history-messages`, userMsg)
@@ -64,7 +64,7 @@ const Chat = ({ setTopics, selectedItem }: any) => {
             role: 'user',
             content: formData.message,
             timestamp: Date.now(),
-            sessionId: sessionId.current
+            sessionId: selectedItem.sessionId
         }
         
         setHistory(prev => [...prev, userMsg])

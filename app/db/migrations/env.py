@@ -5,11 +5,13 @@ from sqlalchemy import pool
 
 from alembic import context
 
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+import sys
+from pathlib import Path
 
-from database import Base
-from models import Chat
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from db.database import Base
+from db.models import Chat
 
 # add your model's MetaData object here
 # for 'autogenerate' support

@@ -1,11 +1,5 @@
 import { useState, useEffect } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
-import ButtonComp from './components/commons/ButtonComp';
 
-import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -35,7 +29,6 @@ function Copyright() {
 
 
 function App() {
-  const [count, setCount] = useState(0);
   const [topics, setTopics] = useState([]);
   const [selectedItem, setSelectedItem] = useState([]);
 
@@ -48,8 +41,10 @@ function App() {
       .then((resp) => {
         const data = resp.data;
         if (data) {
-          setTopics(data.topics);
-          setSelectedItem(data.topics[0])
+          console.log("Topics loaded from chat-history", data.history);
+
+          setTopics(data.history);
+          setSelectedItem(data.history[0].sessionId);
         }
       })
       .catch((error) => {

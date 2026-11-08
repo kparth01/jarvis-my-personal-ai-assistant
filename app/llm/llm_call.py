@@ -9,9 +9,9 @@ from llm.qwen_handler import QwenHandler
 
 
 QWEN_SMART_MODEL = "qwen3.5:9b"
-QWEN_SMALL_MODEL = "qwen2.5-coder:7b"
+QWEN_SMALL_MODEL = "qwen2.5-coder:14b"
 QWEN_GENERAL = "qwen2.5:7b"
-RESPONSE_MODEL = "gemma4"
+RESPONSE_MODEL = "gemma4:12b"
 
 
 MY_INFO = """You are Jarvis, a personal AI assistant exclusively for Parth, 
@@ -205,7 +205,7 @@ class LLMCall():
     
     def generate_response(self, transcript: str) -> tuple[str, str | None]:
         topic: str = ""
-        if (len(self.context) == 0):
+        if len(self.context) == 0:
             self.context.append({"role": "system", "content": SYSTEM_MESSAGE})
             topic = self._generate_topic(transcript=transcript)
             
@@ -252,7 +252,7 @@ class LLMCall():
 
                 self.context.append({
                     "role": "tool",
-                    "content": result,
+                    "content": str(result),
                 })
 
             # tool_response = " ".join(tool_result) if len(tool_result) > 0 else "" 
